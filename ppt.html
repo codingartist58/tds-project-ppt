@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text to PowerPoint Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/file-saver/2.0.5/FileSaver.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.1em;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        
+        .form-section {
+            margin-bottom: 30px;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 15px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .form-section h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            display: flex;
+            align-items: center;
+        }
+        
+        .form-section h3::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #667eea;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #34495e;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.9);
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        
+        .file-upload {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            width: 100%;
+        }
+        
+        .file-upload input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+        
+        .file-upload-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            background: rgba(102, 126, 234, 0.05);
+            color: #667eea;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            min-height: 80px;
+        }
+        
+        .file-upload:hover .file-upload-label,
+        .file-upload-label.dragover {
+            background: rgba(102, 126, 234, 0.1);
+            border-color: #764ba2;
+        }
+        
+        .file-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 8px;
+            color: #667eea;
+            font-size: 14px;
+        }
+        
+        .generate-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 18px 40px;
+            font-size: 18px;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        .generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 10px;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e0e0e0;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 3px;
+        }
+        
+        .error, .success {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .error {
+            background: rgba(231, 76, 60, 0.1);
+            border: 1px solid #e74c3c;
+            color: #c0392b;
+        }
+        
+        .success {
+            background: rgba(46, 204, 113, 0.1);
+            border: 1px solid #2ecc71;
+            color: #27ae60;
+        }
+        
+
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 40px;
+        }
+        
+        .feature-card {
+            background: rgba(255, 255, 255, 0.8);
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .feature-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .form-section {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Text to PowerPoint Generator</h1>
+            <p>Transform your text, markdown, or prose into professionally formatted PowerPoint presentations with AI-powered content structuring and template styling.</p>
+        </div>
+
+        <form id="presentationForm">
+            <div class="form-section">
+                <h3>📝 Content Input</h3>
+                <div class="form-group">
+                    <label for="inputText">Your Text Content</label>
+                    <textarea 
+                        id="inputText" 
+                        placeholder="Paste your text, markdown, or prose here... The AI will intelligently break this into slides based on content structure and flow."
+                        required
+                    ></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="guidance">Presentation Guidance (Optional)</label>
+                    <input 
+                        type="text" 
+                        id="guidance" 
+                        placeholder="e.g., 'investor pitch deck', 'technical overview', 'sales presentation'"
+                    >
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>🤖 AI Configuration</h3>
+                <div class="form-group">
+                    <label for="llmProvider">LLM Provider</label>
+                    <select id="llmProvider" required>
+                        <option value="">Select Provider</option>
+                        <option value="openai">OpenAI (GPT-4, GPT-3.5)</option>
+                        <option value="anthropic">Anthropic (Claude)</option>
+                        <option value="google">Google (Gemini)</option>
+                    </select>
+                </div>
+                
+                
+            </div>
+
+            <div class="form-section">
+                <h3>🎨 Template Upload</h3>
+                <div class="form-group">
+                    <div class="file-upload">
+                        <input type="file" id="templateFile" accept=".pptx,.potx" required>
+                        <label for="templateFile" class="file-upload-label">
+                            📎 Drop your PowerPoint template here or click to browse
+                            <br><small>Supports .pptx and .potx files</small>
+                        </label>
+                    </div>
+                    <div id="fileInfo" class="file-info" style="display: none;"></div>
+                </div>
+            </div>
+
+            <button type="submit" class="generate-btn" id="generateBtn">
+                ✨ Generate PowerPoint Presentation
+            </button>
+        </form>
+
+        <div class="loading" id="loadingDiv">
+            <div class="loading-spinner"></div>
+            <div id="loadingText">Processing your content...</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <div class="error" id="errorDiv"></div>
+        <div class="success" id="successDiv"></div>
+
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🧠</div>
+                <h4>Smart Content Analysis</h4>
+                <p>AI intelligently breaks down your text into logical slide sections and structures</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎨</div>
+                <h4>Template Style Matching</h4>
+                <p>Automatically applies colors, fonts, and layouts from your uploaded template</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔧</div>
+                <h4>Multiple AI Providers</h4>
+                <p>Works with OpenAI, Anthropic, and Google AI services using your own API key</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class PowerPointGenerator {
+            constructor() {
+                this.initializeEventListeners();
+                this.templateData = null;
+                this.currentProgress = 0;
+            }
+
+            initializeEventListeners() {
+                const form = document.getElementById('presentationForm');
+                const fileInput = document.getElementById('templateFile');
+                const fileLabel = document.querySelector('.file-upload-label');
+
+                form.addEventListener('submit', (e) => this.handleFormSubmit(e));
+                fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
+                
+                // Drag and drop functionality
+                fileLabel.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    fileLabel.classList.add('dragover');
+                });
+                
+                fileLabel.addEventListener('dragleave', () => {
+                    fileLabel.classList.remove('dragover');
+                });
+                
+                fileLabel.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    fileLabel.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        fileInput.files = files;
+                        this.handleFileUpload({ target: { files } });
+                    }
+                });
+            }
+
+            handleFileUpload(event) {
+                const file = event.target.files[0];
+                const fileInfo = document.getElementById('fileInfo');
+                
+                if (file) {
+                    fileInfo.style.display = 'block';
+                    fileInfo.innerHTML = `
+                        <strong>📁 ${file.name}</strong><br>
+                        Size: ${(file.size / 1024 / 1024).toFixed(2)} MB<br>
+                        Type: ${file.type || 'PowerPoint Template'}
+                    `;
+                    
+                    // Read and parse the template
+                    this.parseTemplate(file);
+                } else {
+                    fileInfo.style.display = 'none';
+                }
+            }
+
+            async parseTemplate(file) {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const zip = new JSZip();
+                    const contents = await zip.loadAsync(arrayBuffer);
+                    
+                    this.templateData = {
+                        originalZip: contents,
+                        slides: [],
+                        theme: null,
+                        layouts: [],
+                        images: {}
+                    };
+
+                    // Extract theme and layout information
+                    await this.extractThemeData(contents);
+                    await this.extractLayoutData(contents);
+                    await this.extractImages(contents);
+                    
+                    console.log('Template parsed successfully:', this.templateData);
+                } catch (error) {
+                    console.error('Error parsing template:', error);
+                    this.showError('Failed to parse PowerPoint template. Please ensure it\'s a valid .pptx or .potx file.');
+                }
+            }
+
+            async extractThemeData(zip) {
+                try {
+                    const themeFile = zip.file('ppt/theme/theme1.xml');
+                    if (themeFile) {
+                        const themeContent = await themeFile.async('text');
+                        this.templateData.theme = themeContent;
+                    }
+                } catch (error) {
+                    console.log('Theme extraction failed:', error);
+                }
+            }
+
+            async extractLayoutData(zip) {
+                try {
+                    const layouts = [];
+                    const layoutFiles = Object.keys(zip.files).filter(name => 
+                        name.startsWith('ppt/slideLayouts/') && name.endsWith('.xml')
+                    );
+                    
+                    for (const layoutFile of layoutFiles) {
+                        const content = await zip.file(layoutFile).async('text');
+                        layouts.push({
+                            name: layoutFile,
+                            content: content
+                        });
+                    }
+                    
+                    this.templateData.layouts = layouts;
+                } catch (error) {
+                    console.log('Layout extraction failed:', error);
+                }
+            }
+
+            async extractImages(zip) {
+                try {
+                    const images = {};
+                    const mediaFiles = Object.keys(zip.files).filter(name => 
+                        name.startsWith('ppt/media/') && 
+                        (name.includes('.png') || name.includes('.jpg') || name.includes('.jpeg') || name.includes('.gif'))
+                    );
+                    
+                    for (const mediaFile of mediaFiles) {
+                        const content = await zip.file(mediaFile).async('base64');
+                        images[mediaFile] = content;
+                    }
+                    
+                    this.templateData.images = images;
+                } catch (error) {
+                    console.log('Image extraction failed:', error);
+                }
+            }
+
+            async handleFormSubmit(event) {
+                event.preventDefault();
+                
+                const inputText = document.getElementById('inputText').value.trim();
+                const guidance = document.getElementById('guidance').value.trim();
+                const llmProvider = document.getElementById('llmProvider').value;
+                const apiKey = document.getElementById('apiKey').value.trim();
+                
+                if (!inputText || !llmProvider || !apiKey || !this.templateData) {
+                    this.showError('Please fill in all required fields and upload a template.');
+                    return;
+                }
+
+                this.showLoading();
+                this.updateProgress(10, 'Analyzing content...');
+
+                try {
+                    // Step 1: Analyze content and create slide structure
+                    const slideStructure = await this.analyzeContent(inputText, guidance, llmProvider, apiKey);
+                    this.updateProgress(40, 'Creating slide content...');
+
+                    // Step 2: Generate detailed slide content
+                    const slideContent = await this.generateSlideContent(slideStructure, llmProvider, apiKey);
+                    this.updateProgress(70, 'Building presentation...');
+
+                    // Step 3: Create PowerPoint file
+                    const pptxBlob = await this.createPowerPoint(slideContent);
+                    this.updateProgress(100, 'Complete!');
+
+                    // Step 4: Download
+                    this.downloadPresentation(pptxBlob);
+                    this.showSuccess('Presentation generated successfully! Download should start automatically.');
+
+                } catch (error) {
+                    console.error('Generation failed:', error);
+                    this.showError(`Failed to generate presentation: ${error.message}`);
+                } finally {
+                    this.hideLoading();
+                }
+            }
+
+            async analyzeContent(text, guidance, provider, apiKey) {
+                const prompt = `
+                    Analyze the following text and create a logical slide structure for a PowerPoint presentation.
+                    ${guidance ? `Guidance: ${guidance}` : ''}
+                    
+                    Text to analyze:
+                    ${text}
+                    
+                    Please provide a JSON response with the following structure:
+                    {
+                        "title": "Presentation Title",
+                        "slides": [
+                            {
+                                "type": "title",
+                                "title": "Slide Title",
+                                "subtitle": "Optional subtitle"
+                            },
+                            {
+                                "type": "content",
+                                "title": "Slide Title",
+                                "bullets": ["Point 1", "Point 2", "Point 3"]
+                            }
+                        ]
+                    }
+                    
+                    Guidelines:
+                    - Create 5-12 slides based on content length and complexity
+                    - Use different slide types: title, content, comparison, conclusion
+                    - Keep bullet points concise and impactful
+                    - Ensure logical flow between slides
+                    - First slide should be a title slide
+                    - Last slide should be a conclusion or next steps
+                `;
+
+                return await this.callLLM(prompt, provider, apiKey);
+            }
+
+            async generateSlideContent(structure, provider, apiKey) {
+                const prompt = `
+                    Based on this slide structure, generate detailed content for each slide.
+                    Structure: ${JSON.stringify(structure)}
+                    
+                    For each slide, provide:
+                    - Enhanced titles
+                    - Detailed bullet points or content
+                    - Speaker notes
+                    
+                    Return JSON in the same structure but with enhanced content.
+                `;
+
+                return await this.callLLM(prompt, provider, apiKey);
+            }
+
+            async callLLM(prompt, provider, apiKey) {
+                let endpoint, headers, body;
+
+                switch (provider) {
+                    case 'openai':
+                        endpoint = 'https://api.openai.com/v1/chat/completions';
+                        headers = {
+                            'Authorization': `Bearer ${apiKey}`,
+                            'Content-Type': 'application/json'
+                        };
+                        body = {
+                            model: 'gpt-3.5-turbo',
+                            messages: [{ role: 'user', content: prompt }],
+                            temperature: 0.7,
+                            max_tokens: 2000
+                        };
+                        break;
+                        
+                    case 'anthropic':
+                        endpoint = 'https://api.anthropic.com/v1/messages';
+                        headers = {
+                            'x-api-key': apiKey,
+                            'Content-Type': 'application/json',
+                            'anthropic-version': '2023-06-01'
+                        };
+                        body = {
+                            model: 'claude-3-sonnet-20240229',
+                            max_tokens: 2000,
+                            messages: [{ role: 'user', content: prompt }]
+                        };
+                        break;
+                        
+                    case 'google':
+                        endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+                        headers = {
+                            'Content-Type': 'application/json'
+                        };
+                        body = {
+                            contents: [{ parts: [{ text: prompt }] }],
+                            generationConfig: {
+                                temperature: 0.7,
+                                maxOutputTokens: 2000
+                            }
+                        };
+                        break;
+                        
+                    default:
+                        throw new Error('Unsupported LLM provider');
+                }
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                let content;
+
+                switch (provider) {
+                    case 'openai':
+                        content = data.choices[0].message.content;
+                        break;
+                    case 'anthropic':
+                        content = data.content[0].text;
+                        break;
+                    case 'google':
+                        content = data.candidates[0].content.parts[0].text;
+                        break;
+                }
+
+                try {
+                    return JSON.parse(content);
+                } catch (e) {
+                    console.error('Failed to parse JSON response:', content);
+                    throw new Error('Invalid JSON response from AI service');
+                }
+            }
+
+            async createPowerPoint(slideContent) {
+                // Create a new ZIP structure based on the template
+                const newZip = new JSZip();
+                
+                // Copy essential files from template
+                const essentialFiles = [
+                    '[Content_Types].xml',
+                    '_rels/.rels',
+                    'docProps/app.xml',
+                    'docProps/core.xml',
+                    'ppt/_rels/presentation.xml.rels',
+                    'ppt/theme/theme1.xml',
+                    'ppt/presProps.xml',
+                    'ppt/viewProps.xml',
+                    'ppt/tableStyles.xml'
+                ];
+
+                for (const file of essentialFiles) {
+                    try {
+                        const fileData = this.templateData.originalZip.file(file);
+                        if (fileData) {
+                            const content = await fileData.async('arraybuffer');
+                            newZip.file(file, content);
+                        }
+                    } catch (e) {
+                        console.log(`Could not copy ${file}:`, e);
+                    }
+                }
+
+                // Copy layout files
+                for (const layout of this.templateData.layouts) {
+                    try {
+                        const layoutData = this.templateData.originalZip.file(layout.name);
+                        if (layoutData) {
+                            const content = await layoutData.async('arraybuffer');
+                            newZip.file(layout.name, content);
+                        }
+                    } catch (e) {
+                        console.log(`Could not copy layout ${layout.name}:`, e);
+                    }
+                }
+
+                // Copy images
+                for (const [imagePath, imageData] of Object.entries(this.templateData.images)) {
+                    newZip.file(imagePath, imageData, { base64: true });
+                }
+
+                // Generate presentation.xml
+                const presentationXml = this.generatePresentationXml(slideContent);
+                newZip.file('ppt/presentation.xml', presentationXml);
+
+                // Generate slide files
+                for (let i = 0; i < slideContent.slides.length; i++) {
+                    const slideXml = this.generateSlideXml(slideContent.slides[i], i + 1);
+                    newZip.file(`ppt/slides/slide${i + 1}.xml`, slideXml);
+                    
+                    // Generate slide relationship file
+                    const slideRelsXml = this.generateSlideRelsXml(i + 1);
+                    newZip.file(`ppt/slides/_rels/slide${i + 1}.xml.rels`, slideRelsXml);
+                }
+
+                return await newZip.generateAsync({ type: 'blob' });
+            }
+
+            generatePresentationXml(slideContent) {
+                const slideIds = slideContent.slides.map((_, index) => 
+                    `<p:sldId id="${256 + index}" r:id="rId${index + 2}"/>`
+                ).join('\n        ');
+
+                return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:sldMasterIdLst>
+    <p:sldMasterId id="2147483648" r:id="rId1"/>
+  </p:sldMasterIdLst>
+  <p:sldIdLst>
+    ${slideIds}
+  </p:sldIdLst>
+  <p:sldSz cx="9144000" cy="6858000" type="screen4x3"/>
+  <p:notesSz cx="6858000" cy="9144000"/>
+  <p:defaultTextStyle>
+    <a:defPPr>
+      <a:defRPr lang="en-US"/>
+    </a:defPPr>
+  </p:defaultTextStyle>
+</p:presentation>`;
+            }
+
+            generateSlideXml(slide, slideNumber) {
+                let content = '';
+                
+                if (slide.type === 'title') {
+                    content = `
+      <p:sp>
+        <p:nvSpPr>
+          <p:cNvPr id="1" name="Title 1"/>
+          <p:cNvSpPr>
+            <a:spLocks noGrp="1"/>
+          </p:cNvSpPr>
+          <p:nvPr>
+            <p:ph type="ctrTitle"/>
+          </p:nvPr>
+        </p:nvSpPr>
+        <p:spPr/>
+        <p:txBody>
+          <a:bodyPr/>
+          <a:lstStyle/>
+          <a:p>
+            <a:r>
+              <a:rPr lang="en-US" dirty="0"/>
+              <a:t>${this.escapeXml(slide.title)}</a:t>
+            </a:r>
+            <a:endParaRPr lang="en-US"/>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+      ${slide.subtitle ? `
+      <p:sp>
+        <p:nvSpPr>
+          <p:cNvPr id="2" name="Subtitle 2"/>
+          <p:cNvSpPr>
+            <a:spLocks noGrp="1"/>
+          </p:cNvSpPr>
+          <p:nvPr>
+            <p:ph type="subTitle" idx="1"/>
+          </p:nvPr>
+        </p:nvSpPr>
+        <p:spPr/>
+        <p:txBody>
+          <a:bodyPr/>
+          <a:lstStyle/>
+          <a:p>
+            <a:r>
+              <a:rPr lang="en-US"/>
+              <a:t>${this.escapeXml(slide.subtitle)}</a:t>
+            </a:r>
+            <a:endParaRPr lang="en-US"/>
+          </a:p>
+        </p:txBody>
+      </p:sp>` : ''}`;
+                } else {
+                    const bullets = slide.bullets ? slide.bullets.map(bullet => 
+                        `<a:p><a:r><a:rPr lang="en-US"/><a:t>${this.escapeXml(bullet)}</a:t></a:r></a:p>`
