@@ -1,0 +1,9 @@
+{
+  "name": "my-static-site",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "npx serve public -s -l 3000",
+    "build": "echo 'no build step (static site in public/)'"
+  },
+  "engines": { "node": ">=18" }
+}

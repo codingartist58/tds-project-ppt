@@ -827,3 +827,56 @@
                 } else {
                     const bullets = slide.bullets ? slide.bullets.map(bullet => 
                         `<a:p><a:r><a:rPr lang="en-US"/><a:t>${this.escapeXml(bullet)}</a:t></a:r></a:p>`
+                    ).join('') : '';
+
+                    content = `
+      <p:sp>
+        <p:nvSpPr>
+          <p:cNvPr id="3" name="Content 3"/>
+          <p:cNvSpPr>
+            <a:spLocks noGrp="1"/>
+          </p:cNvSpPr>
+          <p:nvPr>
+            <p:ph type="body" idx="1"/>
+          </p:nvPr>
+        </p:nvSpPr>
+        <p:spPr/>
+        <p:txBody>
+          <a:bodyPr/>
+          <a:lstStyle/>
+          ${bullets}
+        </p:txBody>
+      </p:sp>`;
+                }
+                return content;
+            }
+
+            generateSlideRelsXml(slideNumber) {
+                return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId${slideNumber}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="ppt/slides/slide${slideNumber}.xml"/>
+</Relationships>`;
+            }
+
+            escapeXml(unsafe) {
+                return unsafe
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&apos;");
+            }
+        }
+
+        // Usage
+        const pptGenerator = new PowerPointGenerator();
+        const slideContent = {
+            slides: [
+                { type: 'title', title: 'Slide 1 Title', subtitle: 'Slide 1 Subtitle' },
+                { type: 'content', bullets: ['Bullet 1', 'Bullet 2', 'Bullet 3'] }
+            ]
+        };
+        pptGenerator.createPresentation(slideContent);
+    </script>
+</body>
+</html>
